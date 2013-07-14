@@ -40,17 +40,8 @@ var assertFileExists = function(infile) {
     return instr;
 };
 
-var cheerioURLFile = function(url) {
-  rest.get(url).on('complete', function(result) {
-    if (result instanceof Error) {
-      console.log('Error: ' + result.message);
-      this.retry(5000); // try again after 5 sec
-    } else {
-      htmlresults = result
-    }
-  });
-  return cheerio.load(htmlresult);
-}
+var cheerioURLFile = function(url, checksfile) {
+};
 
 var cheerioHtmlFile = function(htmlfile) {
     return cheerio.load(fs.readFileSync(htmlfile));
@@ -61,11 +52,25 @@ var loadChecks = function(checksfile) {
 };
 
 var checkHtmlFile = function(htmlfile, url, checksfile) {
-    if (url) {
-      $ = cheerioURLFile(url);
-    } else { 
-      $ = cheerioHtmlFile(htmlfile);
-    }
+  if (url) {
+    rest.get(url).on('complete', function(result) {
+      if (result instanceof Error) {
+        console.log('Error: ' + result.message);
+        process.exit(1);
+      }
+      console.log('got results:');
+      $ = cheerio.load(result);
+      var checks = loadChecks(checksfile).sort();
+      var out = {};
+      for(var ii in checks) {
+          var present = $(checks[ii]).length > 0;
+          out[checks[ii]] = present;
+      }
+      var outJson = JSON.stringify(out, null, 4);
+      console.log(outJson);
+    });
+  } else { 
+    $ = cheerioHtmlFile(htmlfile);
     var checks = loadChecks(checksfile).sort();
     var out = {};
     for(var ii in checks) {
@@ -73,6 +78,7 @@ var checkHtmlFile = function(htmlfile, url, checksfile) {
         out[checks[ii]] = present;
     }
     return out;
+    }
 };
 
 var clone = function(fn) {
